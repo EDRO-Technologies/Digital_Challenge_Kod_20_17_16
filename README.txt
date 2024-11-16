@@ -12,4 +12,3 @@
 тут -> https://docs.github.com/ru/repositories/working-with-files/managing-files/adding-a-file-to-a-repository
 
 Удачи!
-    
