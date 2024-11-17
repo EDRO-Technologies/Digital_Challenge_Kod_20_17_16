@@ -3,16 +3,46 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io"
-	"os"
+	"html/template"
+	"log"
+	"net/http"
 
 	_ "github.com/lib/pq"
 )
 
-type product struct {
-	id       int
-	name     string
-	obj_type int8
+type Top_wells struct {
+	id      int
+	xz_name string
+	craft   int
+}
+
+// type msg string
+var database *sql.DB
+
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+
+	rows, err := database.Query("select * from objects where type=5")
+	if err != nil {
+		log.Println(err)
+	}
+	defer rows.Close()
+	top_wells := []Top_wells{}
+
+	for rows.Next() {
+		k := Top_wells{}
+		err := rows.Scan(&k.id, &k.xz_name, &k.craft)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		top_wells = append(top_wells, k)
+	}
+
+	tmpl, _ := template.ParseFiles("front/index.html")
+	tmpl.Execute(w, top_wells)
+	// for _, p := range top_wells {
+	// 	fmt.Println(p.id, p.xz_name, p.craft)
+	// }
 }
 
 func main() {
@@ -22,47 +52,32 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	database = db
+
 	defer db.Close()
-	file, err := os.Open("./DB/fakt.txt")
+
+	rows, err := db.Query("select * from objects where type=5")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
-	defer file.Close()
+	defer rows.Close()
+	top_wells := []Top_wells{}
 
-	data := make([]byte, 64)
-
-	for {
-		n, err := file.Read(data)
-		if err == io.EOF { // если конец файла
-			break // выходим из цикла
-		}
-		// fmt.Print(string(data[:n]))
-
-		db.Exec(string(data[:n]))
+	for rows.Next() {
+		p := Top_wells{}
+		err := rows.Scan(&p.id, &p.xz_name, &p.craft)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			continue
 		}
+		top_wells = append(top_wells, p)
+	}
+	for _, p := range top_wells {
+		fmt.Println(p.id, p.xz_name, p.craft)
 	}
 
-	// rows, err := db.Query("select * from objects where type=5")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer rows.Close()
-	// products := []product{}
-
-	// for rows.Next() {
-	// 	p := product{}
-	// 	err := rows.Scan(&p.id, &p.name, &p.obj_type)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		continue
-	// 	}
-	// 	products = append(products, p)
-	// }
-	// for _, p := range products {
-	// 	fmt.Println(p.id, p.name)
-	// }
-
+	http.HandleFunc("/", IndexHandler)
+	fmt.Println("Server is listening...")
+	http.ListenAndServe("localhost:8181", nil)
 }
